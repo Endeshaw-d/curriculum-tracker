@@ -117,12 +117,13 @@ export default function CurriculumProgression() {
                 const file = e.target.files[0];
                 if (!file) return;
                 const reader = new FileReader();
-                reader.onload = (event) => {
+	                
+		reader.onload = (event) => {
                   try {
                     const data = JSON.parse(event.target.result);
                     localStorage.setItem(`curriculum-progress-${user}`, JSON.stringify(data));
                     setProgress(data);
-                  } catch (_err) { // Corrected line: 'err' changed to '_err'
+                  } catch { // Corrected line: 'err' changed to '_err'
                     alert("Invalid JSON file");
                   }
                 };
