@@ -2,17 +2,51 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import syllabus from "../app/pearson_syllabus_library.json";
+import syllabus from "../app/pearson_syllabus_library.json"; // Reverted path back to ../app/pearson_syllabus_library.json
 
-// Transform the syllabus into a flat progression map
-const extractProgression = (data) => {
-  const map = {};
+// Define the interfaces for your data structure
+// Represents a single topic entry within a year
+interface TopicEntry {
+  topic: string;
+  code: string;
+}
+
+// Represents the topics for a specific year, as structured in the output map
+interface YearTopics {
+  year: string;
+  topics: TopicEntry[];
+}
+
+// Represents the structure of a single subject's years from the raw syllabus JSON
+interface SubjectYears {
+  [year: string]: TopicEntry[]; // e.g., { "Year 7": [{ topic: "...", code: "..." }] }
+}
+
+// Represents the overall structure of the imported syllabus JSON
+interface SyllabusData {
+  [subject: string]: SubjectYears; // e.g., { "English": { "Year 7": [...] } }
+}
+
+/**
+ * Transforms the raw syllabus data into a flattened progression map.
+ * This map groups topics by subject and then by sorted year.
+ * @param data The raw syllabus data from the JSON file.
+ * @returns A map where keys are subjects and values are arrays of year-topic objects.
+ */
+const extractProgression = (data: SyllabusData): { [key: string]: YearTopics[] } => {
+  const map: { [key: string]: YearTopics[] } = {}; // Explicitly type the map
   for (const subject in data) {
     map[subject] = [];
     const years = data[subject];
-    const sortedYears = Object.keys(years).sort((a, b) => a.match(/\d+/)[0] - b.match(/\d+/)[0]);
+    // Sort years numerically based on the number in "Year X"
+    const sortedYears = Object.keys(years).sort((a, b) => {
+      const numA = parseInt(a.match(/\d+/)?.[0] || '0', 10); // Safely extract number
+      const numB = parseInt(b.match(/\d+/)?.[0] || '0', 10); // Safely extract number
+      return numA - numB;
+    });
+
     for (const year of sortedYears) {
-      const topics = years[year].map((entry) => ({
+      const topics: TopicEntry[] = years[year].map((entry) => ({
         year,
         topic: entry.topic,
         code: entry.code,
@@ -23,17 +57,24 @@ const extractProgression = (data) => {
   return map;
 };
 
-const curriculumData = extractProgression(syllabus);
+// Process the syllabus data once when the component loads
+const curriculumData = extractProgression(syllabus as SyllabusData); // Cast syllabus to SyllabusData
 
+/**
+ * Main Curriculum Progression component.
+ * Manages user progress, allows switching between users, and displays a leaderboard.
+ */
 export default function CurriculumProgression() {
-  const [user, setUser] = useState(() => {
+  // State to manage the active user, initialized from localStorage or "guest"
+  const [user, setUser] = useState<string>(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("active-user") || "guest";
     }
     return "guest";
   });
 
-  const [progress, setProgress] = useState(() => {
+  // State to manage the progress for the current user, initialized from localStorage
+  const [progress, setProgress] = useState<{ [code: string]: boolean }>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(`curriculum-progress-${user}`);
       return saved ? JSON.parse(saved) : {};
@@ -41,7 +82,12 @@ export default function CurriculumProgression() {
     return {};
   });
 
-  const toggleTopic = (code) => {
+  /**
+   * Toggles the completion status of a topic by its code.
+   * Updates local storage with the new progress and timestamp.
+   * @param code The unique code of the topic to toggle.
+   */
+  const toggleTopic = (code: string) => {
     setProgress((prev) => {
       const updated = { ...prev, [code]: !prev[code] };
       if (typeof window !== "undefined") {
@@ -52,47 +98,64 @@ export default function CurriculumProgression() {
     });
   };
 
+  /**
+   * Resets the progress for the current user.
+   * Clears the progress from local storage.
+   */
   const resetProgress = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem(`curriculum-progress-${user}`);
+      localStorage.removeItem(`curriculum-timestamp-${user}`); // Also remove timestamp on reset
     }
     setProgress({});
   };
 
-  const calculateProgress = (topics) => {
+  /**
+   * Calculates the completion percentage for a given set of topics.
+   * @param topics An array of topic entries.
+   * @returns The percentage of topics completed (rounded to nearest integer).
+   */
+  const calculateProgress = (topics: TopicEntry[]): number => {
     const total = topics.length;
+    if (total === 0) return 0; // Avoid division by zero
     const completed = topics.filter((t) => progress[t.code]).length;
     return Math.round((completed / total) * 100);
   };
 
   return (
-    <Tabs defaultValue="English" className="w-full p-4">
-      <div className="flex justify-between items-center mb-2">
-        <div className="flex gap-2 items-center">
-          <label htmlFor="user" className="text-sm font-medium">User:</label>
+    <Tabs defaultValue="English" className="w-full p-4 font-inter"> {/* Added font-inter */}
+      {/* User selection, Export, and Import controls */}
+      <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
+        <div className="flex items-center gap-3">
+          <label htmlFor="user" className="text-sm font-medium text-gray-700">User:</label>
           <select
             id="user"
             value={user}
             onChange={(e) => {
               const name = e.target.value || "guest";
               setUser(name);
-              localStorage.setItem("active-user", name);
-              const saved = localStorage.getItem(`curriculum-progress-${name}`);
-              setProgress(saved ? JSON.parse(saved) : {});
+              if (typeof window !== "undefined") {
+                localStorage.setItem("active-user", name);
+                const saved = localStorage.getItem(`curriculum-progress-${name}`);
+                setProgress(saved ? JSON.parse(saved) : {});
+              }
             }}
-            className="border px-2 py-1 text-sm rounded"
+            className="border border-gray-300 px-3 py-1 text-sm rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
           >
+            {/* Dynamically generate user options from localStorage */}
             {["guest", ...Object.keys(localStorage)
-              .filter((key) => key.startsWith("curriculum-progress-") && key !== `curriculum-progress-${user}`)
+              .filter((key) => key.startsWith("curriculum-progress-"))
               .map((key) => key.replace("curriculum-progress-", ""))
-              .filter((value, index, self) => self.indexOf(value) === index)]
+              .filter((value, index, self) => self.indexOf(value) === index) // Deduplicate
+              .sort((a, b) => a.localeCompare(b))] // Sort alphabetically
               .map((name) => (
                 <option key={name} value={name}>{name}</option>
               ))}
           </select>
 
+          {/* Export Button */}
           <button
-            className="ml-2 text-sm underline text-blue-600 hover:text-blue-800"
+            className="px-3 py-1 bg-blue-500 text-white text-sm rounded-md shadow-sm hover:bg-blue-600 transition-colors duration-200"
             onClick={() => {
               const dataStr = JSON.stringify(progress, null, 2);
               const blob = new Blob([dataStr], { type: "application/json" });
@@ -104,27 +167,32 @@ export default function CurriculumProgression() {
               URL.revokeObjectURL(url);
             }}
           >
-            Export
+            Export Progress
           </button>
 
-          <label htmlFor="import" className="ml-2 text-sm underline text-blue-600 hover:text-blue-800 cursor-pointer">
-            Import
+          {/* Import Button (hidden file input) */}
+          <label htmlFor="import" className="px-3 py-1 bg-gray-200 text-gray-800 text-sm rounded-md shadow-sm hover:bg-gray-300 cursor-pointer transition-colors duration-200">
+            Import Progress
             <input
               id="import"
               type="file"
               accept="application/json"
               onChange={(e) => {
-                const file = e.target.files[0];
+                const file = e.target.files?.[0]; // Use optional chaining for safety
                 if (!file) return;
                 const reader = new FileReader();
-	                
-		reader.onload = (event) => {
+                reader.onload = (event) => {
                   try {
-                    const data = JSON.parse(event.target.result);
-                    localStorage.setItem(`curriculum-progress-${user}`, JSON.stringify(data));
+                    const data = JSON.parse(event.target?.result as string); // Cast result to string
+                    if (typeof window !== "undefined") {
+                      localStorage.setItem(`curriculum-progress-${user}`, JSON.stringify(data));
+                      localStorage.setItem(`curriculum-timestamp-${user}`, new Date().toISOString());
+                    }
                     setProgress(data);
-                  } catch { // Corrected line: 'err' changed to '_err'
-                    alert("Invalid JSON file");
+                  } catch { // No parameter needed if not used
+                    // In a real app, you might use a custom modal or toast for this alert
+                    console.error("Failed to parse imported JSON file.");
+                    alert("Invalid JSON file. Please ensure it's a valid progress file.");
                   }
                 };
                 reader.readAsText(file);
@@ -134,60 +202,68 @@ export default function CurriculumProgression() {
           </label>
         </div>
 
+        {/* Reset Progress Button */}
         <button
           onClick={resetProgress}
-          className="text-sm text-red-600 underline hover:text-red-800"
+          className="px-3 py-1 bg-red-500 text-white text-sm rounded-md shadow-sm hover:bg-red-600 transition-colors duration-200"
         >
           Reset Progress
         </button>
       </div>
 
-      <TabsList className="grid grid-cols-3 md:grid-cols-6 gap-1">
+      {/* Subject Tabs List */}
+      <TabsList className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 p-1 bg-gray-100 rounded-lg shadow-inner">
         {Object.keys(curriculumData).map((subject) => (
-          <TabsTrigger key={subject} value={subject}>
+          <TabsTrigger
+            key={subject}
+            value={subject}
+            className="flex-grow py-2 px-4 text-sm font-medium text-gray-700 rounded-md data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200 hover:bg-gray-200"
+          >
             {subject}
           </TabsTrigger>
         ))}
       </TabsList>
 
+      {/* Content for each subject tab */}
       {Object.entries(curriculumData).map(([subject, years]) => {
         const allTopics = years.flatMap((y) => y.topics);
         const completed = allTopics.filter((t) => progress[t.code]).length;
         const total = allTopics.length;
-        const percent = Math.round((completed / total) * 100);
+        const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
         const remaining = total - completed;
 
         return (
-          <TabsContent key={subject} value={subject}>
-            <div className="flex justify-end text-sm text-gray-700 pr-4 pt-2">
-              {`${percent}% total completed — ${remaining} topics remaining`}
+          <TabsContent key={subject} value={subject} className="mt-4">
+            <div className="flex justify-end text-sm text-gray-700 pr-4 pt-2 mb-2">
+              <span className="font-semibold">{`${percent}% total completed`}</span>
+              <span className="ml-2 text-gray-600">{`— ${remaining} topics remaining`}</span>
             </div>
-            <Card className="mt-4">
-              <CardContent>
-                <div className="space-y-6">
+            <Card className="rounded-xl shadow-lg border border-gray-200">
+              <CardContent className="p-6">
+                <div className="space-y-8">
                   {years.map((yearData, index) => {
                     const progressPercent = calculateProgress(yearData.topics);
                     return (
-                      <div key={index}>
-                        <div className="flex justify-between items-center mb-2">
-                          <h3 className="font-bold text-lg">{yearData.year}</h3>
-                          <span className="text-sm text-gray-600">{progressPercent}% completed</span>
+                      <div key={index} className="border-b border-gray-200 pb-6 last:border-b-0 last:pb-0">
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="font-bold text-xl text-gray-800">{yearData.year}</h3>
+                          <span className="text-base font-medium text-blue-600">{progressPercent}% completed</span>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                           {yearData.topics.map((item) => {
                             const isChecked = !!progress[item.code];
                             return (
                               <label
                                 key={item.code}
-                                className={`flex items-center gap-2 p-2 border rounded-xl shadow-sm transition-colors duration-200 ${
-                                  isChecked ? "bg-green-100 border-green-400 text-green-800 line-through" : "bg-white"
-                                }`}
+                                className={`flex items-center gap-3 p-4 border rounded-xl shadow-sm cursor-pointer transition-all duration-200 ease-in-out
+                                  ${isChecked ? "bg-green-50 border-green-400 text-green-800 line-through opacity-80" : "bg-white border-gray-200 text-gray-900 hover:border-blue-300 hover:shadow-md"}`}
                               >
                                 <Checkbox
                                   checked={isChecked}
                                   onCheckedChange={() => toggleTopic(item.code)}
+                                  className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
                                 />
-                                <span>{item.topic}</span>
+                                <span className="text-base">{item.topic}</span>
                               </label>
                             );
                           })}
@@ -202,47 +278,50 @@ export default function CurriculumProgression() {
         );
       })}
 
-      <Card className="mt-8">
-        <CardContent>
-          <h2 className="text-xl font-bold mb-4">Leaderboard</h2>
+      {/* Leaderboard Section */}
+      <Card className="mt-8 rounded-xl shadow-lg border border-gray-200">
+        <CardContent className="p-6">
+          <h2 className="text-2xl font-bold mb-6 text-gray-800">Leaderboard</h2>
           {(() => {
+            // Retrieve all user progress from localStorage
             const userProgress = Object.keys(localStorage)
               .filter((key) => key.startsWith("curriculum-progress-"))
               .map((key) => {
                 const name = key.replace("curriculum-progress-", "");
-                const saved = JSON.parse(localStorage.getItem(key));
+                const saved = JSON.parse(localStorage.getItem(key) || '{}'); // Handle null/empty saved data
                 const allCodes = Object.values(curriculumData)
                   .flatMap((y) => y.flatMap((lvl) => lvl.topics))
                   .map((t) => t.code);
                 const completed = allCodes.filter((code) => saved[code]).length;
-                const percent = Math.round((completed / allCodes.length) * 100);
+                const totalTopics = allCodes.length;
+                const percent = totalTopics > 0 ? Math.round((completed / totalTopics) * 100) : 0;
                 const timestamp = localStorage.getItem(`curriculum-timestamp-${name}`);
                 return { name, percent, timestamp };
-              });
+              })
+              .sort((a, b) => b.percent - a.percent); // Sort by percentage, descending
 
-            const maxPercent = Math.max(...userProgress.map((u) => u.percent));
+            const maxPercent = userProgress.length > 0 ? Math.max(...userProgress.map((u) => u.percent)) : 0;
 
             return (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {userProgress.map(({ name, percent, timestamp }) => (
                   <div
                     key={name}
-                    className={`p-3 border rounded-xl shadow-sm ${
-                      percent === maxPercent ? "bg-yellow-100 border-yellow-500" : ""
-                    }`}
+                    className={`p-4 border rounded-xl shadow-md transition-all duration-200 ease-in-out
+                      ${percent === maxPercent && maxPercent > 0 ? "bg-yellow-100 border-yellow-500 ring-2 ring-yellow-300" : "bg-white border-gray-200"}`}
                   >
-                    <div className="flex justify-between">
-                      <span className="font-medium">
-                        {name} {percent === maxPercent ? "🥇" : ""}
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-semibold text-lg text-gray-800">
+                        {name} {percent === maxPercent && maxPercent > 0 ? "🥇" : ""}
                       </span>
-                      <span className="text-sm text-gray-600">
-                        {percent}% completed<br />
-                        <span className="text-xs">{timestamp ? new Date(timestamp).toLocaleString() : 'No activity yet'}</span>
+                      <span className="text-sm text-gray-600 text-right">
+                        <span className="font-bold text-blue-600">{percent}% completed</span><br />
+                        <span className="text-xs text-gray-500">{timestamp ? new Date(timestamp).toLocaleString() : 'No activity yet'}</span>
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded h-2 mt-2">
+                    <div className="w-full bg-gray-200 rounded-full h-2.5">
                       <div
-                        className="bg-green-500 h-2 rounded"
+                        className="bg-green-500 h-2.5 rounded-full transition-all duration-500 ease-out"
                         style={{ width: `${percent}%` }}
                       ></div>
                     </div>
