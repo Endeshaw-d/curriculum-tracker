@@ -69,34 +69,34 @@ export default function CurriculumProgression() {
     <Tabs defaultValue="English" className="w-full p-4">
       <div className="flex justify-between items-center mb-2">
         <div className="flex gap-2 items-center">
-          <label htmlFor=\"user\" className=\"text-sm font-medium\">User:</label>
+          <label htmlFor="user" className="text-sm font-medium">User:</label>
 <select
-  id=\"user\"
+  id="user"
   value={user}
   onChange={(e) => {
-    const name = e.target.value || \"guest\";
+    const name = e.target.value || "guest";
     setUser(name);
-    localStorage.setItem(\"active-user\", name);
+    localStorage.setItem("active-user", name);
     const saved = localStorage.getItem(`curriculum-progress-${name}`);
     setProgress(saved ? JSON.parse(saved) : {});
   }}
-  className=\"border px-2 py-1 text-sm rounded\"
+  className="border px-2 py-1 text-sm rounded"
 >
-  {[\"guest\", ...Object.keys(localStorage)
-    .filter((key) => key.startsWith(\"curriculum-progress-\") && key !== `curriculum-progress-${user}`)
-    .map((key) => key.replace(\"curriculum-progress-\", \"\"))
+  {["guest", ...Object.keys(localStorage)
+    .filter((key) => key.startsWith("curriculum-progress-") && key !== `curriculum-progress-${user}`)
+    .map((key) => key.replace("curriculum-progress-", ""))
     .filter((value, index, self) => self.indexOf(value) === index)]
     .map((name) => (
       <option key={name} value={name}>{name}</option>
     ))}
 </select>
 <button
-  className=\"ml-2 text-sm underline text-blue-600 hover:text-blue-800\"
+  className="ml-2 text-sm underline text-blue-600 hover:text-blue-800"
   onClick={() => {
     const dataStr = JSON.stringify(progress, null, 2);
-    const blob = new Blob([dataStr], { type: \"application/json\" });
+    const blob = new Blob([dataStr], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement(\"a\");
+    const a = document.createElement("a");
     a.href = url;
     a.download = `${user}-progress.json`;
     a.click();
@@ -105,12 +105,12 @@ export default function CurriculumProgression() {
 >
   Export
 </button>
-<label htmlFor=\"import\" className=\"ml-2 text-sm underline text-blue-600 hover:text-blue-800 cursor-pointer\">
+<label htmlFor="import" className="ml-2 text-sm underline text-blue-600 hover:text-blue-800 cursor-pointer">
   Import
   <input
-    id=\"import\"
-    type=\"file\"
-    accept=\"application/json\"
+    id="import"
+    type="file"
+    accept="application/json"
     onChange={(e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -121,12 +121,12 @@ export default function CurriculumProgression() {
           localStorage.setItem(`curriculum-progress-${user}`, JSON.stringify(data));
           setProgress(data);
         } catch (err) {
-          alert(\"Invalid JSON file\");
+          alert("Invalid JSON file");
         }
       };
       reader.readAsText(file);
     }}
-    className=\"hidden\"
+    className="hidden"
   />
 </label>
         </div>
