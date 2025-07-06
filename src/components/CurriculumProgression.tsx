@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react"; // Import useEffect
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -65,22 +65,35 @@ const curriculumData = extractProgression(syllabus as SyllabusData); // Cast syl
  * Manages user progress, allows switching between users, and displays a leaderboard.
  */
 export default function CurriculumProgression() {
-  // State to manage the active user, initialized from localStorage or "guest"
-  const [user, setUser] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("active-user") || "guest";
-    }
-    return "guest";
-  });
+  // State to manage the active user, initialized with a default value.
+  // Actual loading from localStorage happens in useEffect.
+  const [user, setUser] = useState<string>("guest");
+  // State to manage the progress for the current user, initialized with an empty object.
+  // Actual loading from localStorage happens in useEffect.
+  const [progress, setProgress] = useState<{ [code: string]: boolean }>({});
+  // State for displaying messages related to import operations
+  const [importMessage, setImportMessage] = useState<string | null>(null);
 
-  // State to manage the progress for the current user, initialized from localStorage
-  const [progress, setProgress] = useState<{ [code: string]: boolean }>(() => {
+  // useEffect to load user and progress from localStorage on client-side mount
+  // This ensures localStorage is only accessed in the browser environment.
+  useEffect(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem(`curriculum-progress-${user}`);
-      return saved ? JSON.parse(saved) : {};
+      const storedUser = localStorage.getItem("active-user") || "guest";
+      setUser(storedUser);
+
+      const storedProgress = localStorage.getItem(`curriculum-progress-${storedUser}`);
+      setProgress(storedProgress ? JSON.parse(storedProgress) : {});
     }
-    return {};
-  });
+  }, []); // Empty dependency array means this runs once on mount
+
+  // useEffect to update progress when the 'user' state changes
+  // This handles switching between different users' progress.
+  useEffect(() => {
+    if (typeof window !== "undefined" && user) { // Ensure window is defined and user is not null/undefined
+      const savedProgress = localStorage.getItem(`curriculum-progress-${user}`);
+      setProgress(savedProgress ? JSON.parse(savedProgress) : {});
+    }
+  }, [user]); // Re-run this effect whenever the 'user' state changes
 
   /**
    * Toggles the completion status of a topic by its code.
@@ -132,39 +145,40 @@ export default function CurriculumProgression() {
             id="user"
             value={user}
             onChange={(e) => {
-              const name = e.target.value || "guest";
-              setUser(name);
+              const newUserName = e.target.value || "guest";
+              setUser(newUserName); // This will trigger the useEffect for loading progress
               if (typeof window !== "undefined") {
-                localStorage.setItem("active-user", name);
-                const saved = localStorage.getItem(`curriculum-progress-${name}`);
-                setProgress(saved ? JSON.parse(saved) : {});
+                localStorage.setItem("active-user", newUserName);
               }
             }}
             className="border border-gray-300 px-3 py-1 text-sm rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
           >
             {/* Dynamically generate user options from localStorage */}
-            {["guest", ...Object.keys(localStorage)
-              .filter((key) => key.startsWith("curriculum-progress-"))
-              .map((key) => key.replace("curriculum-progress-", ""))
-              .filter((value, index, self) => self.indexOf(value) === index) // Deduplicate
-              .sort((a, b) => a.localeCompare(b))] // Sort alphabetically
-              .map((name) => (
-                <option key={name} value={name}>{name}</option>
-              ))}
+            {typeof window !== "undefined" && // Ensure localStorage is available before accessing
+              ["guest", ...Object.keys(localStorage)
+                .filter((key) => key.startsWith("curriculum-progress-"))
+                .map((key) => key.replace("curriculum-progress-", ""))
+                .filter((value, index, self) => self.indexOf(value) === index) // Deduplicate
+                .sort((a, b) => a.localeCompare(b))] // Sort alphabetically
+                .map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
           </select>
 
           {/* Export Button */}
           <button
             className="px-3 py-1 bg-blue-500 text-white text-sm rounded-md shadow-sm hover:bg-blue-600 transition-colors duration-200"
             onClick={() => {
-              const dataStr = JSON.stringify(progress, null, 2);
-              const blob = new Blob([dataStr], { type: "application/json" });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = `${user}-progress.json`;
-              a.click();
-              URL.revokeObjectURL(url);
+              if (typeof window !== "undefined") { // Guard localStorage access
+                const dataStr = JSON.stringify(progress, null, 2);
+                const blob = new Blob([dataStr], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `${user}-progress.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }
             }}
           >
             Export Progress
@@ -184,15 +198,18 @@ export default function CurriculumProgression() {
                 reader.onload = (event) => {
                   try {
                     const data = JSON.parse(event.target?.result as string); // Cast result to string
-                    if (typeof window !== "undefined") {
+                    if (typeof window !== "undefined") { // Guard localStorage access
                       localStorage.setItem(`curriculum-progress-${user}`, JSON.stringify(data));
                       localStorage.setItem(`curriculum-timestamp-${user}`, new Date().toISOString());
                     }
                     setProgress(data);
-                  } catch { // No parameter needed if not used
-                    // In a real app, you might use a custom modal or toast for this alert
+                    setImportMessage("Progress imported successfully!");
+                  } catch {
+                    setImportMessage("Invalid JSON file. Please ensure it's a valid progress file.");
                     console.error("Failed to parse imported JSON file.");
-                    alert("Invalid JSON file. Please ensure it's a valid progress file.");
+                  } finally {
+                    // Clear message after some time
+                    setTimeout(() => setImportMessage(null), 5000);
                   }
                 };
                 reader.readAsText(file);
@@ -201,6 +218,13 @@ export default function CurriculumProgression() {
             />
           </label>
         </div>
+
+        {/* Import message display */}
+        {importMessage && (
+          <div className={`text-sm py-1 px-3 rounded-md ${importMessage.includes("Invalid") ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
+            {importMessage}
+          </div>
+        )}
 
         {/* Reset Progress Button */}
         <button
@@ -284,21 +308,24 @@ export default function CurriculumProgression() {
           <h2 className="text-2xl font-bold mb-6 text-gray-800">Leaderboard</h2>
           {(() => {
             // Retrieve all user progress from localStorage
-            const userProgress = Object.keys(localStorage)
-              .filter((key) => key.startsWith("curriculum-progress-"))
-              .map((key) => {
-                const name = key.replace("curriculum-progress-", "");
-                const saved = JSON.parse(localStorage.getItem(key) || '{}'); // Handle null/empty saved data
-                const allCodes = Object.values(curriculumData)
-                  .flatMap((y) => y.flatMap((lvl) => lvl.topics))
-                  .map((t) => t.code);
-                const completed = allCodes.filter((code) => saved[code]).length;
-                const totalTopics = allCodes.length;
-                const percent = totalTopics > 0 ? Math.round((completed / totalTopics) * 100) : 0;
-                const timestamp = localStorage.getItem(`curriculum-timestamp-${name}`);
-                return { name, percent, timestamp };
-              })
-              .sort((a, b) => b.percent - a.percent); // Sort by percentage, descending
+            // Ensure localStorage is available before accessing
+            const userProgress = typeof window !== "undefined"
+              ? Object.keys(localStorage)
+                  .filter((key) => key.startsWith("curriculum-progress-"))
+                  .map((key) => {
+                    const name = key.replace("curriculum-progress-", "");
+                    const saved = JSON.parse(localStorage.getItem(key) || '{}'); // Handle null/empty saved data
+                    const allCodes = Object.values(curriculumData)
+                      .flatMap((y) => y.flatMap((lvl) => lvl.topics))
+                      .map((t) => t.code);
+                    const completed = allCodes.filter((code) => saved[code]).length;
+                    const totalTopics = allCodes.length;
+                    const percent = totalTopics > 0 ? Math.round((completed / totalTopics) * 100) : 0;
+                    const timestamp = localStorage.getItem(`curriculum-timestamp-${name}`);
+                    return { name, percent, timestamp };
+                  })
+                  .sort((a, b) => b.percent - a.percent) // Sort by percentage, descending
+              : []; // Return empty array if localStorage is not defined
 
             const maxPercent = userProgress.length > 0 ? Math.max(...userProgress.map((u) => u.percent)) : 0;
 
@@ -335,3 +362,4 @@ export default function CurriculumProgression() {
     </Tabs>
   );
 }
+
