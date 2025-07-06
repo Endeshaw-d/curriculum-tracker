@@ -1,0 +1,86 @@
+{
+  "English": {
+    "Year 5": [
+      { "code": "EN-Y5-1", "topic": "Narrative Writing" },
+      { "code": "EN-Y5-2", "topic": "Grammar Basics" }
+    ],
+    "Year 6": [
+      { "code": "EN-Y6-1", "topic": "Persuasive Writing" },
+      { "code": "EN-Y6-2", "topic": "Punctuation" }
+    ],
+    "Year 7": [
+      { "code": "EN-Y7-1", "topic": "Literary Analysis" },
+      { "code": "EN-Y7-2", "topic": "Writing Essays" }
+    ]
+  },
+  "Biology": {
+    "Year 5": [
+      { "code": "BIO-Y5-1", "topic": "Plant Life" },
+      { "code": "BIO-Y5-2", "topic": "Human Organs" }
+    ],
+    "Year 6": [
+      { "code": "BIO-Y6-1", "topic": "Ecosystems" },
+      { "code": "BIO-Y6-2", "topic": "Food Chains" }
+    ],
+    "Year 7": [
+      { "code": "BIO-Y7-1", "topic": "Cells and Tissues" },
+      { "code": "BIO-Y7-2", "topic": "Adaptation" }
+    ]
+  },
+  "Computer Science": {
+    "Year 5": [
+      { "code": "CS-Y5-1", "topic": "Introduction to Algorithms" },
+      { "code": "CS-Y5-2", "topic": "Scratch Programming" }
+    ],
+    "Year 6": [
+      { "code": "CS-Y6-1", "topic": "Data Representation" },
+      { "code": "CS-Y6-2", "topic": "Logic Gates" }
+    ],
+    "Year 7": [
+      { "code": "CS-Y7-1", "topic": "Python Basics" },
+      { "code": "CS-Y7-2", "topic": "Loops and Conditionals" }
+    ]
+  },
+  "Chemistry": {
+    "Year 5": [
+      { "code": "CH-Y5-1", "topic": "States of Matter" },
+      { "code": "CH-Y5-2", "topic": "Mixtures and Solutions" }
+    ],
+    "Year 6": [
+      { "code": "CH-Y6-1", "topic": "Acids and Bases" },
+      { "code": "CH-Y6-2", "topic": "Physical vs Chemical Change" }
+    ],
+    "Year 7": [
+      { "code": "CH-Y7-1", "topic": "Periodic Table Intro" },
+      { "code": "CH-Y7-2", "topic": "Atoms and Molecules" }
+    ]
+  },
+  "Physics": {
+    "Year 5": [
+      { "code": "PH-Y5-1", "topic": "Forces and Motion" },
+      { "code": "PH-Y5-2", "topic": "Simple Machines" }
+    ],
+    "Year 6": [
+      { "code": "PH-Y6-1", "topic": "Electricity" },
+      { "code": "PH-Y6-2", "topic": "Light and Shadows" }
+    ],
+    "Year 7": [
+      { "code": "PH-Y7-1", "topic": "Energy Forms" },
+      { "code": "PH-Y7-2", "topic": "Magnetism" }
+    ]
+  },
+  "Math": {
+    "Year 5": [
+      { "code": "MA-Y5-1", "topic": "Fractions & Decimals" },
+      { "code": "MA-Y5-2", "topic": "Geometry Basics" }
+    ],
+    "Year 6": [
+      { "code": "MA-Y6-1", "topic": "Ratios & Proportions" },
+      { "code": "MA-Y6-2", "topic": "Algebraic Thinking" }
+    ],
+    "Year 7": [
+      { "code": "MA-Y7-1", "topic": "Linear Equations" },
+      { "code": "MA-Y7-2", "topic": "Probability" }
+    ]
+  }
+}
